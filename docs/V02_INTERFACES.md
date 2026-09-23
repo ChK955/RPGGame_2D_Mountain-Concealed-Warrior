@@ -1,0 +1,30 @@
+# v0.2 implementation contracts
+
+Keep Phaser 3.90 / existing systems. All times in ms. Root edits shared types, CombatSystem, Actor, Player, GameSession, devtools, map, BossEncounter, integration tests. Independent owners: normal-enemy+poise; boss-controller; presentation/UI/world.
+
+## Shared enemy / boss surface
+
+Enemy extends Actor. Public `config:EnemyConfig`, `spawn:EnemySpawn`, `poise:PoiseMeter`, `combatCue:TelegraphCue|null`, `alerted:boolean`, `staggeredAt:number`, `attackStage:'none'|'windup'|'active'|'recovery'`, `attackStartedAt:number`, `attackEndsAt:number`.
+`Enemy.update(now,player,combat,tactics?:EnemyTactics):void`; normal AI only. `protected updateStatus(now):boolean` ticks poise/recovery/flash/death fade and returns true if AI must return (dead/staggered). `protected health:number`; `protected nextAttackAt:number`; `protected moveSafely(speed):void`. `resetPosition(fullHealth=false):void` resets action, poise, timers, position and optionally HP. `receiveDamage(amount,direction,now,knockback,poiseDamage=0):number` returns actual HP damage; ordinary feedback does NOT clear an ongoing action. Only actual poise break sets Stagger. `combatCue` publishes view-independent telegraph for all AI. Actor gain `interrupted` getter: Death/Hurt/Stagger/Transition; root CombatSystem honors it. Boss overrides Enemy.update, can reuse updateStatus and receiveDamage but owns AI entirely in BossController.
+
+PoiseMeter in components/PoiseMeter.ts exports constructor(config:PoiseConfig), public current/max, `damage(amount,now):boolean` (true only newly broken), `update(now):void`, `reset():void`, `isStaggered(now):boolean`, public `staggerUntil:number`. No Phaser dependency; time is paused simulation time. Stagger is finite; damage during stagger cannot extend/rebreak it. Recovery delayed after hits, and refill after stagger ends.
+
+EnemyTactics in ai/EnemyCoordinator.ts: `{canAttack:boolean; alert:boolean; holdDistance:number}`. Coordinator `update(now,player,enemies):void` + `forEnemy(enemy):EnemyTactics`; max 2 melee commitments, nearby alert, ranged excluded. No Boss-specific code in ordinary Enemy. Agents may coordinate these shared contracts directly.
+
+Boss in entities/Boss.ts extends Enemy, constructor(scene,spawn,config). Public `controller:BossController`, `engaged:boolean`; methods `engage(now):void`, `resetEncounter(now):void`; update overrides normal AI. BossController public `phase:1|2|3`, `currentSkill:string`, `transitioning:boolean`, `cue:TelegraphCue|null`; `update(now,player,combat):void`, reset(now):void. Boss uses ENEMIES.boss config supplied by enemy agent; boss attack config in separate config/boss.ts owned by boss agent. HP target 1000, phases 65%/30%, transition850ms zero damage, five patterns: slash,lunge,shockwave,combo,phantom. Direction locked at windup. Large recovery after final combo; don't triple-repeat. Only run while engaged, player alive. Boss reset restores health/poise/phase/cooldowns and clears spawned attacks via caller. Root BossEncounter owns barriers/checkpoint/camera/events; Boss does not manipulate DOM or Scene lifecycle.
+
+## Combat API owned by root
+
+Existing melee(source,spec):AttackInstance, projectile(source,SkillConfig,damage):AttackInstance remain. MeleeSpec existing fields plus optional poiseDamage, kind:AttackKind, facing, offsetX, offsetY. All hitboxes centered vertically on body.center.y + offsetY; forward offsetX default10 from body.center.x.
+
+New `launchProjectile(source,spec):AttackInstance` with ProjectileSpec fields: windup:number,lifetime:number,damage:number,width:number,height:number,speed:number; optional poiseDamage,knockback,facing,offsetY,origin:{x,y},kind:'wave'|'bolt'|'shockwave',piercing:boolean,grounded:boolean. Explicit origin is center point at activation; otherwise body center. Grounded shockwave bottom follows platform top and expires at missing ground/solid wall. Projectile faces locked direction, no homing. Live projectile persists after normal source interruption; death, phase transition and player death clear it. `cancel(source,includeLaunched=true):void`, clear():void. AttackInstance retains old fields plus `kind`, `poiseDamage`, `projectile`, `shown`, `window`, `bounds` and `facing`. Source has optional presentation from Enemy, no texture dependencies.
+
+## Presentation
+
+Effects existing update(now,enemies,attacks,player) accepts Enemy[] including Boss. Render enemy.combatCue for anticipations, projectile.kind for visuals and enemy.poise for stagger. Optional methods `poiseBreak(actor)`, `phaseChange(actor,phase)`, `encounter(actor)`, damage(actor,amount,attack?) root calls. Audio interface can be Scene.events.emit('combat-audio', {kind,x}) with no resources. No gameplay timers in tweens.
+DebugView existing APIs accept Enemy[] including Boss; show poise, alert, cue, and Boss.controller phase/skill by structural presentation or guarded Boss type. HudSnapshot adds optional boss:BossHudState; top center name/HP/poise subtle bar, fade on visible false. Existing menus responsive sizing maintained.
+WorldView add `setBossArenaLocked(locked):void`, `setBossCheckpointActive(active):void`; visual gates only, root BossEncounter creates colliders. map.bossArena root set left5940/right6870/triggerX6020/groundY596/checkpoint5790,555. Keep existing mid checkpoint3310; two resupply opportunities. Remove overhead platforms within boss arena (root map edit). WorldView additional shrine before boss and visual boundaries reuse existing original assets.
+
+## Integration / validation
+
+Root adds BossEncounter lifecycle and map combinations. Test truthful FaceTank vs Skillful (same pair), Boss mash vs proper play. Boss proper play uses actual keyboard & readonly observation, starting fixture may supply appropriate level3/4 and3potions but must not mutate HP/damage during battle. Full journey plays from ordinary spawn without cheats. No lowering difficulty merely to pass old script. Preserve initial v0.1 evidence in output/baseline-v0.1.tar.gz. User explicitly authorizes autonomous implementation, no approval pause.

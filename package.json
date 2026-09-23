@@ -1,0 +1,24 @@
+{
+  "name": "mistbound-rpg-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "assets": "node scripts/generate-assets.mjs",
+    "playtest": "node scripts/run-playtest.mjs"
+  },
+  "dependencies": {
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.4",
+    "typescript": "~5.7.3",
+    "vite": "^6.4.0",
+    "vitest": "^4.1.11"
+  }
+}

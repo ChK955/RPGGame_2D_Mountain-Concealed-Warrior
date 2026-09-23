@@ -1,0 +1,60 @@
+async (page) => {
+  const checks=[],errors=[],failedRequests=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('response',r=>{if(r.status()>=400)failedRequests.push(`${r.status()} ${r.url()}`);});
+  const check=(name,pass,detail)=>{checks.push({name,pass,detail});if(!pass)throw new Error(name+': '+JSON.stringify(detail));};
+  const inspect=()=>page.evaluate(()=>window.__MISTBOUND__.inspect());
+  await page.bringToFront();await page.goto('http://localhost:5177/');
+  await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.body.reset(750,556);s.enemies[0].body.reset(1000,556);});
+  await page.waitForTimeout(150);let s=await inspect();
+  check('enemy detects and chases',s.enemies[0].state==='Chase'&&s.enemies[0].x<1000,s.enemies[0]);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.enemies[0].resetPosition();s.enemies[0].body.reset(990,556);s.player.body.reset(930,556);});
+  await page.waitForTimeout(200);s=await inspect();check('attack windup is harmless',s.enemies[0].state==='Telegraph'&&s.hp===120,s.hp);
+  await page.waitForTimeout(430);s=await inspect();check('enemy active window damages player',s.hp===102&&['Hurt','Idle'].includes(s.state),{hp:s.hp,state:s.state});
+  await page.waitForTimeout(260);check('one enemy swing only hits once',(await inspect()).hp===102,(await inspect()).hp);
+  await page.keyboard.press('q');await page.waitForFunction(()=>window.__MISTBOUND__.inspect().potionCount===2,{},{timeout:2000});s=await inspect();check('potion restores health and consumes one',s.hp===120&&s.potionCount===2,{hp:s.hp,potions:s.potionCount});
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.combat.clear();s.enemies[0].resetPosition();s.enemies[0].body.reset(990,556);s.enemies[0].nextAttackAt=s.now+10000;s.player.body.reset(915,556);s.player.face(1);s.player.attackReadyAt=0;});
+  await page.keyboard.press('j');await page.waitForTimeout(290);s=await inspect();check('melee hitbox deals exactly one base hit',s.enemies[0].hp===96,s.enemies[0].hp);
+  await page.screenshot({path:'output/playwright/04-combat.png'});
+  await page.waitForTimeout(300);await page.keyboard.press('k');await page.waitForTimeout(420);
+  s=await inspect();check('projectile has higher independent damage',s.enemies[0].hp===43,s.enemies[0].hp);
+  // Reposition only for isolation: all damage below still comes from actual J input.
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.body.reset(s.enemies[0].x-65,556);s.player.face(1);});
+  await page.waitForFunction(()=>{const s=window.__MISTBOUND__.getSession();return s.now>=s.player.attackReadyAt&&s.now>=s.player.lockedUntil;});
+  await page.keyboard.press('j');
+  await page.waitForFunction(()=>window.__MISTBOUND__.inspect().enemies[0].hp===19);
+  // Hit-stop freezes simulation time, so readiness is not a fixed wall-clock delay.
+  await page.waitForFunction(()=>{const s=window.__MISTBOUND__.getSession();return s.now>=s.player.attackReadyAt&&s.now>=s.player.lockedUntil;});
+  await page.keyboard.press('j');
+  await page.waitForFunction(()=>window.__MISTBOUND__.inspect().kills===1);
+  s=await inspect();check('enemy dies and awards XP once',s.enemies[0].state==='Death'&&s.kills===1&&s.experience===45,{kills:s.kills,xp:s.experience,hp:s.enemies[0].hp});
+  await page.waitForTimeout(450);check('death cannot award duplicate XP',(await inspect()).experience===45,(await inspect()).experience);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.loot.spawn('gold',7,s.player.x,s.player.centerY);s.loot.spawn('potion',1,s.player.x,s.player.centerY);});
+  const before=await inspect();await page.waitForTimeout(120);s=await inspect();check('independent drop pickups update inventory',s.gold>=before.gold&&s.potionCount>=3,{gold:s.gold,potions:s.potionCount});
+  // Pure XP math is also covered by unit tests; fixture validates the live HUD binding.
+  await page.evaluate(()=>window.__MISTBOUND__.getSession().state.gainExperience(55));
+  await page.waitForTimeout(80);s=await inspect();check('level-up updates live HP and HUD',s.level===2&&s.maxHp===138&&s.experience===0,s.level);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.state.takeDamage(70);s.player.body.reset(3310,556);});
+  await page.waitForTimeout(160);s=await inspect();check('checkpoint records spawn, heals and resupplies',s.checkpointActive&&s.hp===s.maxHp&&s.potionCount>=3&&s.checkpoint.x===3310,s.checkpoint);
+  await page.screenshot({path:'output/playwright/05-checkpoint.png'});
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.receiveDamage(999,1,s.now+10000,0);});
+  await page.waitForTimeout(80);await page.keyboard.press('j');await page.keyboard.press('k');await page.keyboard.press('Shift');
+  await page.waitForTimeout(100);s=await inspect();check('death disables combat and movement',s.dead&&s.state==='Death'&&s.attacks.every(a=>a.source!=='player'),s.state);
+  await page.screenshot({path:'output/playwright/06-death.png'});
+  await page.keyboard.press('Escape');await page.waitForTimeout(80);
+  check('death pause shows usable Resume',await page.getByRole('button',{name:'继续旅程'}).isVisible(),true);
+  await page.waitForTimeout(250);check('paused death timer freezes',(await inspect()).dead===true,true);
+  await page.getByRole('button',{name:'继续旅程'}).click();
+  await page.waitForFunction(()=>!window.__MISTBOUND__.inspect().dead);
+  s=await inspect();check('respawns at checkpoint without reload',Math.abs(s.player.x-3310)<30&&s.hp===s.maxHp&&s.level===2,s.player);
+  await page.waitForTimeout(600);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.body.reset(0,556);});
+  await page.keyboard.down('a');await page.waitForTimeout(300);await page.keyboard.up('a');
+  s=await inspect();check('left world boundary contains physics body',s.player.body.x>=0,s.player.body.x);
+  await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.body.reset(1460,790);});
+  await page.waitForTimeout(350);check('falling into void triggers death',(await inspect()).dead,true);
+  await page.waitForFunction(()=>!window.__MISTBOUND__.inspect().dead);
+  check('no runtime errors or missing requests',errors.length===0&&failedRequests.length===0,{errors,failedRequests});
+  return {checks,errors,failedRequests,final:await inspect()};
+}

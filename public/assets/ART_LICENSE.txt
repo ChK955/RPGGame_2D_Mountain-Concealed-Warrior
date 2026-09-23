@@ -1,0 +1,5 @@
+All PNG assets in this folder are original procedural artwork created for Mistbound.
+No third-party characters, sprites, textures, or reference images are included.
+Source and deterministic rebuild: scripts/generate-assets.mjs.
+Actor sheets: 8 columns × 8 rows; cells 128×128; anchor (64,104).
+Rows: Idle, Run, Jump, Fall, Attack, Skill, Hurt, Death.
