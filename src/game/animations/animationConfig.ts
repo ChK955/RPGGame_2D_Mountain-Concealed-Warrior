@@ -32,6 +32,9 @@ export const ANIMATION_CONFIG: Record<string, ActorAnimations> = {
   'player-main': makeClips('player'),
   'enemy-basic': makeClips('enemy'),
   'enemy-elite': makeClips('elite'),
+  'level2-boss': makeClips('ape'),
+  'npc-elder': makeClips('elder'),
+  'npc-merchant': makeClips('merchant'),
 };
 
 export function registerAnimations(scene: Phaser.Scene): void {

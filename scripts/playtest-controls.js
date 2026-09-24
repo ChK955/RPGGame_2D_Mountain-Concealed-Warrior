@@ -1,11 +1,11 @@
-async (page) => {
+async (page,{startLevelOne}) => {
   const checks=[], errors=[], failedRequests=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400)failedRequests.push(`${r.status()} ${r.url()}`);});
   const check=(name,pass,detail)=>{checks.push({name,pass,detail});if(!pass)throw new Error(name+': '+JSON.stringify(detail));};
   const inspect=()=>page.evaluate(()=>window.__MISTBOUND__.inspect());
   await page.goto('http://localhost:5177/');
-  await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+  await startLevelOne(page);
   await page.locator('#game-container').click({position:{x:300,y:300}});
   let s=await inspect();check('boot / health / 12 enemies',s.hp===120&&s.enemies.length===12,s.hp);
   const x0=s.player.x;
@@ -33,7 +33,8 @@ async (page) => {
   await page.waitForTimeout(350);const dashX=(await inspect()).player.x;
   await page.keyboard.press('Shift');await page.waitForTimeout(120);s=await inspect();
   check('dash moves quickly with independent state',s.state==='Dash'&&Math.abs(s.player.x-dashX)>65,s.player);
-  await page.waitForTimeout(150);await page.keyboard.press('Shift');s=await inspect();
+  await page.waitForFunction(()=>window.__MISTBOUND__.inspect().state!=='Dash');
+  await page.keyboard.press('Shift');await page.waitForTimeout(50);s=await inspect();
   check('dash cooldown prevents consecutive dash',s.dashCooldown>0&&s.state!=='Dash',s.state);
   await page.keyboard.press('q');s=await inspect();check('full health does not consume potion',s.potionCount===3,s.potionCount);
   await page.keyboard.press('Escape');await page.waitForTimeout(80);

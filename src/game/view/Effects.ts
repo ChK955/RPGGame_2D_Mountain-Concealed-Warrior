@@ -4,7 +4,7 @@ import type { Enemy } from '../entities/Enemy';
 import type { AttackInstance } from '../combat/CombatSystem';
 import type { TelegraphCue } from '../data/types';
 
-const COLORS = { slash: 0xeab487, lunge: 0x9bddce, heavy: 0xe9b762, bolt: 0xd3acd7, wave: 0xb5e9cb, shockwave: 0xeead6f, combo: 0xed9b85, phantom: 0xc1a2ed, transition: 0xead5b0 };
+const COLORS = { slash: 0xeab487, lunge: 0x9bddce, heavy: 0xe9b762, bolt: 0xd3acd7, wave: 0xb5e9cb, shockwave: 0xeead6f, combo: 0xed9b85, phantom: 0xc1a2ed, smash: 0xe5a373, rock: 0xc4ac8c, roar: 0xe3a0a4, transition: 0xead5b0 };
 
 /** Paints published combat state. No timers here can activate or interrupt an attack. */
 export class Effects {
@@ -21,7 +21,7 @@ export class Effects {
       const p = this.scene.add.circle(actor.x, actor.centerY, 2 + i % 2, actor.faction === 'player' ? 0xcf7268 : 0xbdd9bc).setDepth(28);
       this.scene.tweens.add({ targets: p, x: actor.x + (Math.random() - 0.5) * 100, y: actor.centerY - 20 - Math.random() * 60, alpha: 0, duration: 230 + Math.random() * 170, onComplete: () => p.destroy() });
     }
-    const heavy = attack && ['heavy', 'shockwave', 'phantom'].includes(attack.kind);
+    const heavy = attack && ['heavy', 'shockwave', 'phantom', 'smash', 'roar', 'rock'].includes(attack.kind);
     if (!this.reducedMotion && actor.faction === 'player') this.scene.cameras.main.shake(heavy ? 120 : 65, heavy ? 0.0023 : 0.0011);
     this.audio(heavy ? 'heavy-hit' : 'hit', actor.x);
   }
@@ -37,7 +37,8 @@ export class Effects {
   }
 
   phaseChange(actor: Actor, phase: number): void {
-    this.floatText(actor.x, actor.body.y - 62, phase === 3 ? '鬼影燃魂' : '玄甲苏醒', phase === 3 ? '#e1a6bc' : '#ebcc9b', 23);
+    const ape = (actor as Actor & { config?: { archetype?: string } }).config?.archetype === 'ape-boss';
+    this.floatText(actor.x, actor.body.y - 62, ape ? '赤目狂化' : phase === 3 ? '鬼影燃魂' : '玄甲苏醒', phase === 3 ? '#e1a6bc' : '#ebcc9b', 23);
     const g = this.scene.add.graphics().setDepth(27);
     g.lineStyle(3, phase === 3 ? 0xca90be : 0xe2c08a, 0.9).strokeEllipse(actor.x, actor.body.bottom, 240, 45);
     this.scene.tweens.add({ targets: g, alpha: 0, duration: 850, onComplete: () => g.destroy() });
@@ -77,7 +78,7 @@ export class Effects {
     this.labels.forEach(label => label.setVisible(false));
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
-      const boss = enemy.config.archetype === 'boss';
+      const boss = enemy.config.archetype === 'boss' || enemy.config.archetype === 'ape-boss';
       const x = enemy.body.center.x, y = enemy.body.y - 15, width = boss ? 94 : 52;
       if (!boss && (enemy.hp < enemy.maxHp || enemy.alerted)) {
         g.fillStyle(0x0b181b, 0.9).fillRect(x - width / 2 - 2, y - 2, width + 4, 12);
@@ -140,11 +141,24 @@ export class Effects {
     const start = x + cue.direction * 10, end = start + cue.direction * cue.range;
     g.lineStyle(2, color, alpha).strokeEllipse(x, ground, enemy.body.width + 20, 12);
     g.lineStyle(2, color, alpha).strokeCircle(x + cue.direction * 18, enemy.centerY - 8, 3 + 5 * progress);
-    if (cue.kind === 'bolt') {
+    if (cue.kind === 'smash') {
+      const target=(enemy as Enemy & {controller?:{landingTargetX?:number|null}}).controller?.landingTargetX;
+      if(target!==null&&target!==undefined) {
+        g.fillStyle(color,0.08+progress*0.16).fillEllipse(target,ground-4,Math.max(150,cue.range),22);
+        g.lineStyle(3,color,alpha).strokeEllipse(target,ground-4,Math.max(150,cue.range),22);
+        g.lineStyle(1,color,alpha*0.55).lineBetween(x,enemy.body.y-48,target,ground-14);
+      }
+    } else if ((cue.kind === 'bolt' || cue.kind === 'rock') && enemy.rangedAim) {
+      const aim = enemy.rangedAim;
+      const fromX = enemy.body.center.x + cue.direction * 25;
+      const fromY = enemy.centerY;
+      g.lineStyle(1, color, alpha * 0.75).lineBetween(fromX, fromY, aim.x, aim.y);
+      g.lineStyle(2, color, alpha).strokeCircle(aim.x, aim.y, 5);
+    } else if (cue.kind === 'bolt'||cue.kind === 'rock') {
       const aimY = enemy.centerY;
       g.lineStyle(1, color, alpha * 0.75).lineBetween(start, aimY, end, aimY);
       g.lineStyle(2, color, alpha).lineBetween(end, aimY - 5, end, aimY + 5);
-    } else if (cue.kind === 'shockwave') {
+    } else if (cue.kind === 'shockwave'||cue.kind === 'roar') {
       // Both directions are announced; the moving objects below carry the real hitboxes.
       for (const side of [-1, 1]) {
         const tip = x + side * Math.min(cue.range, 300);
@@ -171,11 +185,20 @@ export class Effects {
   private drawProjectile(attack: AttackInstance): void {
     const g = this.graphics, r = attack.bounds, x = r.x + r.width / 2, y = r.y + r.height / 2, color = COLORS[attack.kind];
     g.fillStyle(color, 0.14).fillRoundedRect(r.x, r.y, r.width, r.height, 4);
-    if (attack.kind === 'bolt') {
-      const tip = attack.facing > 0 ? r.x + r.width : r.x, tail = attack.facing > 0 ? r.x : r.x + r.width;
-      g.lineStyle(3, color, 0.9).lineBetween(tail, y, tip, y);
-      g.fillStyle(0xf6d7ed, 1).fillTriangle(tip, y, tip - attack.facing * r.width * 0.35, r.y, tip - attack.facing * r.width * 0.35, r.y + r.height);
-    } else if (attack.kind === 'shockwave') {
+    if (attack.kind === 'rock') {
+      g.fillStyle(0x9e8471,0.96).fillCircle(x,y,Math.min(r.width,r.height)*0.44);
+      g.lineStyle(2,0xe0baa0,0.8).strokeCircle(x,y,Math.min(r.width,r.height)*0.44);
+      g.lineStyle(1,0x64505a,0.9).lineBetween(x-8,y-7,x+3,y+4).lineBetween(x+3,y+4,x+10,y-3);
+    } else if (attack.kind === 'bolt') {
+      const length = Math.hypot(attack.speed, attack.speedY) || 1;
+      const ux = attack.facing * attack.speed / length, uy = attack.speedY / length;
+      const tipX = x + ux * r.width * 0.5, tipY = y + uy * r.width * 0.5;
+      const tailX = x - ux * r.width * 0.5, tailY = y - uy * r.width * 0.5;
+      g.lineStyle(3, color, 0.9).lineBetween(tailX, tailY, tipX, tipY);
+      g.fillStyle(0xf6d7ed, 1).fillTriangle(tipX, tipY,
+        tipX - ux * 9 - uy * 7, tipY - uy * 9 + ux * 7,
+        tipX - ux * 9 + uy * 7, tipY - uy * 9 - ux * 7);
+    } else if (attack.kind === 'shockwave'||attack.kind === 'roar') {
       g.lineStyle(2, 0xf6d0a1, 0.9).lineBetween(r.x, r.y + r.height - 2, r.x + r.width, r.y + r.height - 2);
       for (let i = 0; i < 3; i++) {
         const left = r.x + r.width * i / 3;

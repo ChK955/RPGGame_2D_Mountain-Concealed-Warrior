@@ -26,19 +26,26 @@ export class WorldView {
   private arenaLocked = false;
   private exitOpen = false;
   private seed = 2917;
+  private readonly isMist: boolean;
 
   constructor(private readonly scene: Phaser.Scene, private readonly map: MapDefinition) {
+    this.isMist=map.id.includes('level2');
     this.platforms = scene.physics.add.staticGroup();
-    this.keep(scene.add.image(0, 0, 'world-sky').setOrigin(0).setScrollFactor(0).setDepth(-40));
-    this.far = this.keep(scene.add.tileSprite(0, 0, 1280, 720, 'world-mountains-far').setOrigin(0).setScrollFactor(0).setDepth(-35));
-    this.near = this.keep(scene.add.tileSprite(0, 0, 1280, 720, 'world-mountains-near').setOrigin(0).setScrollFactor(0).setDepth(-30));
+    this.keep(scene.add.image(0, 0, this.isMist?'mist-forest-bg':'world-sky').setOrigin(0).setScrollFactor(0).setDepth(-40).setTint(this.isMist?0x73849a:0xffffff));
+    this.far = this.keep(scene.add.tileSprite(0, 0, 1280, 720, 'world-mountains-far').setOrigin(0).setScrollFactor(0).setDepth(-35).setTint(this.isMist?0x8790ae:0xffffff));
+    this.near = this.keep(scene.add.tileSprite(0, 0, 1280, 720, 'world-mountains-near').setOrigin(0).setScrollFactor(0).setDepth(-30).setTint(this.isMist?0x718e9b:0xffffff));
+    if(this.isMist) {
+      this.keep(scene.add.rectangle(640,370,1280,430,0x7296a6,0.12).setScrollFactor(0).setDepth(-23));
+      for(let x=460;x<map.width;x+=620) this.keep(scene.add.image(x,596,'mist-tree').setOrigin(0.5,1).setScale(0.72+(x%3)*0.12).setTint(0x7298a6).setDepth(-11).setAlpha(0.82));
+      for(const x of [3380,3740,4160]) this.keep(scene.add.image(x+72,596,'rock').setOrigin(0.5,1).setScale(0.24).setTint(0x869ca5).setDepth(-7).setAlpha(0.28));
+    }
 
     // Silhouette landmarks rhythmically separate the road's combat spaces.
     for (const [x, scale, flip] of [[930, 0.85, 0], [2390, 1.05, 1], [4110, 0.91, 0], [5770, 1.12, 1]]) {
-      this.keep(scene.add.image(x, 596, 'world-ruin').setOrigin(0.5, 1).setScale(scale).setFlipX(flip === 1).setDepth(-12).setAlpha(0.9));
+      if(x<map.width)this.keep(scene.add.image(x, 596, 'world-ruin').setOrigin(0.5, 1).setScale(scale).setFlipX(flip === 1).setDepth(-12).setAlpha(0.9).setTint(this.isMist?0x96aab5:0xffffff));
     }
     for (const [x, scale, flip] of [[-35, 1.16, 1], [1690, 0.92, 0], [3490, 0.95, 1], [4670, 1.05, 0], [6810, 0.94, 1]]) {
-      this.keep(scene.add.image(x, 620, 'world-tree').setOrigin(0.5, 1).setScale(scale).setFlipX(flip === 1).setDepth(-6));
+      if(x<map.width)this.keep(scene.add.image(x, 620, this.isMist?'mist-tree':'world-tree').setOrigin(0.5, 1).setScale(scale).setFlipX(flip === 1).setDepth(-6).setTint(this.isMist?0x789caa:0xffffff));
     }
     this.keep(scene.add.image(map.exit.x, 596, 'world-gate').setOrigin(0.5, 1).setDepth(-5));
 
@@ -49,13 +56,17 @@ export class WorldView {
       scene.physics.add.existing(body, true);
       this.platforms.add(body);
       this.drawPlatform(terrain, foliage, platform);
+      if(this.isMist&&platform.style==='bridge') this.keep(scene.add.image(platform.x+platform.width/2,platform.y+5,'bridge').setOrigin(0.5,1).setScale(0.31).setTint(0x99aaa5).setDepth(3).setAlpha(0.24));
     }
     // Warm light marks safe landings while preserving the dark void between cliffs.
-    for (const x of [460, 1350, 1640, 2800, 3100, 4540, 4840, 5550, 5940, 6720]) this.makeLantern(x, 596);
-    this.makeSign(560, '古道', '→');
-    this.makeSign(1340, '断桥', '跃');
-    this.makeSign(2920 - 140, '灯祠', '→');
-    this.makeSign(5920, '沉月关', '→');
+    for (const x of [460, 1350, 1640, 2800, 3100, 4540, 4840, 5550, 5940, 6720]) if(x<map.width)this.makeLantern(x, 596);
+    if(this.isMist) {
+      this.makeSign(560,'雾林','→');this.makeSign(2100,'残桥','跃');this.makeSign(map.checkpoint.x-250,'息灯','→');
+      this.makeSign(map.bossArena?map.bossArena.left-180:map.width-750,'魇猿巢','→');
+    } else {
+      this.makeSign(560, '古道', '→');this.makeSign(1340, '断桥', '跃');
+      this.makeSign(2920 - 140, '灯祠', '→');this.makeSign(5920, '沉月关', '→');
+    }
 
     const shrine = this.keep(scene.add.graphics().setDepth(6));
     const cx = map.checkpoint.x;

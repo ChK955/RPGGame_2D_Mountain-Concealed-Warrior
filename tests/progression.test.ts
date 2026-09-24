@@ -124,11 +124,12 @@ describe('checkpoints and new runs', () => {
     expect(state.stats).toMatchObject({ hp: 95, potionCount: 2 });
   });
 
-  it('does not remove surplus potions when activating the checkpoint', () => {
+  it('caps potion pickups at five and preserves carried supply at a checkpoint', () => {
     const state = new GameState({ x: 20, y: 40 });
     state.addLoot('potion', 3);
+    expect(state.stats.potionCount).toBe(5);
     state.activateCheckpoint({ x: 1500, y: 380 });
-    expect(state.stats.potionCount).toBe(6);
+    expect(state.stats.potionCount).toBe(5);
   });
 
   it('respawns with full health while preserving checkpoint, kills, and progression', () => {

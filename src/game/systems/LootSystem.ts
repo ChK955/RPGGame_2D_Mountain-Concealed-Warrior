@@ -27,6 +27,7 @@ export class LootSystem {
       const item=this.items[i];
       item.view.y=item.y+Math.sin(now/280+item.id)*5;
       if(player.alive && Math.abs(player.x-item.x)<55 && Math.abs(player.centerY-item.y)<85) {
+        if(item.kind==='potion'&&this.state.stats.potionCount>=5)continue;
         this.state.addLoot(item.kind,item.amount);
         this.onPickup(item.x,item.y, item.kind==='gold'?`+${item.amount} 铜钱`:`+${item.amount} 回春散`);
         item.view.destroy();this.items.splice(i,1);

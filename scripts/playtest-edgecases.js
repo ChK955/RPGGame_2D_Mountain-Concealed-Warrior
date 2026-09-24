@@ -1,9 +1,9 @@
-async (page) => {
+async (page,{startLevelOne}) => {
   const checks=[],errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   const check=(name,pass,detail)=>{checks.push({name,pass,detail});if(!pass)throw new Error(name+': '+JSON.stringify(detail));};
   await page.goto('http://localhost:5177/');
-  await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+  await startLevelOne(page);
   await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.state.takeDamage(40);s.hitStopRemaining=250;});
   await page.keyboard.press('q');await page.waitForTimeout(500);
   const buffered=await page.evaluate(()=>window.__MISTBOUND__.inspect());
@@ -21,7 +21,7 @@ async (page) => {
   await page.keyboard.down('d');await page.waitForTimeout(400);await page.keyboard.up('d');
   state=await page.evaluate(()=>window.__MISTBOUND__.inspect());
   check('right world boundary contains body',state.player.body.x+state.player.body.width<=7200.001,state.player.body);
-  await page.goto('http://localhost:5177/');await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+  await page.goto('http://localhost:5177/');await startLevelOne(page);
   await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();const e=s.enemies[0];e.receiveDamage(999,1,s.now,0);});
   await page.waitForTimeout(1000);
   state=await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();return {remaining:s.enemies.length,hasDead:s.enemies.some(e=>e.id==='road-01')};});

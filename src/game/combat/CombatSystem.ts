@@ -9,13 +9,13 @@ export interface MeleeSpec {
 }
 export interface ProjectileSpec {
   windup:number; lifetime:number; damage:number; width:number; height:number; speed:number;
-  poiseDamage?:number; knockback?:number; facing?:Facing; offsetY?:number; origin?:Point;
-  kind?:'wave'|'bolt'|'shockwave'; piercing?:boolean; grounded?:boolean;
+  speedY?:number; poiseDamage?:number; knockback?:number; facing?:Facing; offsetY?:number; origin?:Point;
+  kind?:'wave'|'bolt'|'shockwave'|'rock'|'roar'; piercing?:boolean; grounded?:boolean;
 }
 export interface AttackInstance {
   id:number; source:Actor; facing:Facing; window:AttackWindow; bounds:Rect;
   damage:number; poiseDamage:number; knockback:number; range:number; height:number;
-  offsetX:number; offsetY:number; projectile:boolean; speed:number; shown:boolean;
+  offsetX:number; offsetY:number; projectile:boolean; speed:number; speedY:number; shown:boolean;
   kind:AttackKind; grounded:boolean; piercing:boolean; origin?:Point;
   createdAt:number|null; lastUpdatedAt:number; consumed:boolean;
 }
@@ -38,7 +38,7 @@ export class CombatSystem {
       window:new AttackWindow(spec.windup,spec.active,spec.recovery),
       bounds:{x:0,y:0,width:spec.range,height:spec.height},damage:spec.damage,
       poiseDamage:spec.poiseDamage??0,knockback:spec.knockback,range:spec.range,height:spec.height,
-      offsetX:spec.offsetX??10,offsetY:spec.offsetY??0,projectile:false,speed:0,shown:false,
+      offsetX:spec.offsetX??10,offsetY:spec.offsetY??0,projectile:false,speed:0,speedY:0,shown:false,
       kind:spec.kind??'slash',grounded:false,piercing:true,createdAt:null,lastUpdatedAt:0,consumed:false,
     };
     this.anchor(attack);this.attacks.push(attack);return attack;
@@ -54,7 +54,7 @@ export class CombatSystem {
       window:new AttackWindow(spec.windup,spec.lifetime,0),
       bounds:{x:0,y:0,width:spec.width,height:spec.height},damage:spec.damage,
       poiseDamage:spec.poiseDamage??0,knockback:spec.knockback??130,range:spec.width,height:spec.height,
-      offsetX:12,offsetY:spec.offsetY??0,projectile:true,speed:spec.speed,shown:false,
+      offsetX:12,offsetY:spec.offsetY??0,projectile:true,speed:spec.speed,speedY:spec.speedY??0,shown:false,
       kind:spec.kind??'bolt',grounded:spec.grounded??false,piercing:spec.piercing??false,
       origin:spec.origin?{...spec.origin}:undefined,createdAt:null,lastUpdatedAt:0,consumed:false,
     };
@@ -78,6 +78,7 @@ export class CombatSystem {
         const activeSince=attack.createdAt+attack.window.windup;
         const delta=Math.max(0,now-Math.max(activeSince,attack.lastUpdatedAt));
         attack.bounds.x+=attack.facing*attack.speed*delta/1000;
+        attack.bounds.y+=attack.speedY*delta/1000;
         if(this.blocked(attack)) {attack.consumed=true;continue;}
       }
       attack.lastUpdatedAt=now;

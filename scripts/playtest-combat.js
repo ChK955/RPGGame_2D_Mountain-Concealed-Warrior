@@ -1,11 +1,11 @@
-async (page) => {
+async (page,{startLevelOne}) => {
   const checks=[],errors=[],failedRequests=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400)failedRequests.push(`${r.status()} ${r.url()}`);});
   const check=(name,pass,detail)=>{checks.push({name,pass,detail});if(!pass)throw new Error(name+': '+JSON.stringify(detail));};
   const inspect=()=>page.evaluate(()=>window.__MISTBOUND__.inspect());
   await page.bringToFront();await page.goto('http://localhost:5177/');
-  await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+  await startLevelOne(page);
   await page.evaluate(()=>{const s=window.__MISTBOUND__.getSession();s.player.body.reset(750,556);s.enemies[0].body.reset(1000,556);});
   await page.waitForTimeout(150);let s=await inspect();
   check('enemy detects and chases',s.enemies[0].state==='Chase'&&s.enemies[0].x<1000,s.enemies[0]);

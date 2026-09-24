@@ -14,7 +14,8 @@ export class EnemyCoordinator {
   update(_now: number, player: CoordinatorPlayer, enemies: CoordinatorEnemy[]): void {
     this.tactics.clear();
     if (!player.alive) return;
-    const sameLevel = (enemy: CoordinatorEnemy) => Math.abs(enemy.centerY - player.centerY) < ENEMY_BEHAVIOR.sameLevelTolerance;
+    const sameLevel = (enemy: CoordinatorEnemy) => Math.abs(enemy.centerY - player.centerY) <
+      (enemy.config.archetype === 'ranged' ? ENEMY_BEHAVIOR.rangedVerticalTolerance : ENEMY_BEHAVIOR.sameLevelTolerance);
     const normal = enemies.filter(enemy => enemy.alive && enemy.config.archetype !== 'boss');
     const seeing = normal.filter(enemy => sameLevel(enemy) && Math.abs(enemy.x - player.x) <
       (enemy.alerted ? enemy.config.leashRange : enemy.config.detectionRange));

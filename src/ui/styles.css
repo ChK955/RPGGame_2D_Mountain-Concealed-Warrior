@@ -171,3 +171,69 @@ button svg { pointer-events: none; }
 
 @keyframes notification-life { 0% { opacity: 0; transform: translateY(8px); } 10%, 86% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-7px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation-duration: 1ms !important; } .notification { animation: none !important; } }
+
+/* Qing Shi Village uses the same 1280x720 scaled DOM plane as the battle HUD. */
+.village-ui { color: #e4e1cb; text-shadow: 0 2px 7px #071518; }
+.village-ui > section { position: absolute; }
+.village-vitals { top: 27px; left: 34px; width: 286px; padding: 0 2px; }
+.village-kicker { color: #c7b48d; font: 10px Georgia, serif; letter-spacing: 3px; }
+.village-vitals-line { display: flex; align-items: end; justify-content: space-between; margin: 17px 0 10px; }
+.village-vitals-line strong { font: 27px var(--font-display); font-weight: 400; letter-spacing: 3px; }
+.village-vitals-line span { font-size: 11px; color: #b8c8b7; }
+.village-vitals-line b { margin-left: 8px; color: #e1e4ce; font: 13px Georgia, serif; }
+.village-meter { height: 10px; padding: 2px; border: 1px solid #b4c29e66; background: #0b1b1dbd; }
+.village-meter span { display: block; height: 100%; background: linear-gradient(90deg, #6a9f88, #bbd1a5); transition: width 170ms; }
+.village-exp { display: flex; gap: 9px; align-items: center; margin-top: 9px; color: #b7c5aa; font: 10px Georgia, serif; }
+.village-exp div { flex: 1; height: 3px; background: #b2b7a83b; }
+.village-exp i { display: block; height: 3px; background: #ceb480; transition: width 170ms; }
+.village-heading { right: 34px; top: 31px; width: 290px; text-align: right; }
+.village-heading > span { font: 10px Georgia, serif; letter-spacing: 3px; color: #d0bd98; }
+.village-heading h1 { margin: 8px 0 4px; font: 29px var(--font-display); letter-spacing: 6px; }
+.village-heading p { margin: 0 0 11px; font-size: 11px; color: #bfd0bd; letter-spacing: 1px; }
+.village-heading button { border: 1px solid #c5c9a94d; background: #0d2225aa; color: #c3cbb5; padding: 5px 10px; font-size: 10px; pointer-events: auto; }
+.village-heading button:hover { border-color: #d3c995a6; color: #e4dbb8; }
+.village-supplies { left: 34px; bottom: 29px; display: flex; gap: 24px; padding: 10px 15px; border-left: 2px solid #c7ac75a8; background: #0b1d20bd; color: #c9cdb7; font-size: 13px; letter-spacing: 1px; }
+.village-supplies b { margin-left: 7px; color: #ead3a1; font: 20px Georgia, serif; }
+.village-help { right: 34px; bottom: 31px; display: flex; gap: 14px; color: #bbcab9; font-size: 10px; letter-spacing: 1px; }
+.village-tutorial { position: absolute; top: 135px; left: 50%; transform: translateX(-50%); padding: 10px 25px; border-top: 1px solid #d1c28e8c; border-bottom: 1px solid #d1c28e61; background: linear-gradient(90deg, transparent, #0d2526df 12%, #0d2526df 88%, transparent); font: 15px var(--font-display); letter-spacing: 2px; white-space: nowrap; }
+.village-interaction { position: absolute; bottom: 137px; left: 50%; transform: translateX(-50%); padding: 11px 20px; border: 1px solid #a3be9f7a; background: #0c2529db; box-shadow: 0 5px 22px #030f1180; font: 16px var(--font-display); letter-spacing: 2px; white-space: nowrap; }
+.village-toast { position: absolute; top: 188px; left: 420px; width: 440px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.village-toast-line { margin: 0; padding: 7px 18px; background: #10282bdb; border-bottom: 1px solid #afc4a657; color: #cbdcc2; font-size: 12px; letter-spacing: 1px; animation: notification-life 3400ms both; }
+.village-toast-line.success { color: #e5e2ae; }
+.village-toast-line.danger { color: #edb39f; }
+.village-title { position: absolute; top: 270px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; flex-direction: column; gap: 7px; padding: 17px 50px; border-top: 1px solid #b9cdaa8c; border-bottom: 1px solid #b9cdaa52; background: linear-gradient(90deg, transparent, #10292ba8 17%, #10292ba8 83%, transparent); pointer-events: none; opacity: 1; transition: opacity 900ms; }
+.village-title.is-fading { opacity: 0; }
+.village-title span { color: #caba88; font: 13px var(--font-display); letter-spacing: 8px; }
+.village-title strong { font: 40px var(--font-display); font-weight: 400; letter-spacing: 12px; padding-left: 12px; white-space: nowrap; }
+.village-title small { color: #a9baae; font: 9px Georgia, serif; letter-spacing: 4px; }
+.village-debug { position: absolute; top: 180px; left: 36px; margin: 0; padding: 10px 14px; background: #08171bd9; border-left: 2px solid #91bb9d; color: #b7d6b5; font: 11px/1.7 ui-monospace, monospace; }
+.village-modal-backdrop { position: absolute; z-index: 30; inset: 0; display: grid; place-items: center; background: #05151891; backdrop-filter: blur(4px); pointer-events: auto; }
+.village-dialogue { position: absolute; bottom: 50px; left: 180px; width: 920px; min-height: 173px; padding: 23px 34px 20px; border: 1px solid #b3b99875; background: linear-gradient(120deg, #1d3737f5, #10282df5); box-shadow: 0 20px 60px #010c0fe0, inset 0 0 0 5px #071e223d; }
+.village-dialogue-speaker { color: #e2cb93; font: 19px var(--font-display); letter-spacing: 4px; }
+.village-dialogue p { margin: 15px 0 14px; color: #e8e3cf; font: 18px var(--font-display); letter-spacing: 2px; }
+.village-dialogue button { float: right; padding: 7px 13px; border: 1px solid #c6c9a97a; background: #37564a8c; color: #f0e7ca; font-size: 12px; pointer-events: auto; }
+.village-dialogue button span { margin-left: 12px; color: #b4ccba; font-size: 9px; }
+.village-dialogue-count { position: absolute; bottom: 24px; left: 35px; color: #aabbb0; font: 11px Georgia, serif; }
+.village-shop { width: 720px; max-height: 630px; padding: 29px 34px; overflow-y: auto; border: 1px solid #b9bb987d; background: linear-gradient(150deg, #203633fa, #10252afa); box-shadow: 0 25px 80px #020e10db, inset 0 0 0 6px #071b1e45; }
+.village-shop-head { display: flex; justify-content: space-between; }
+.village-shop-head span { color: #ccb98a; font: 10px Georgia, serif; letter-spacing: 3px; }
+.village-shop-head h2 { margin: 8px 0 4px; font: 29px var(--font-display); letter-spacing: 6px; }
+.village-shop-head p { margin: 4px 0 14px; color: #afc2b2; font-size: 12px; }
+.village-shop-head button { width: 31px; height: 31px; border: 1px solid #a9b9a065; background: #172c2c; color: #d8d8bd; font: 23px Georgia, serif; pointer-events: auto; }
+.village-shop-balance { display: flex; gap: 28px; border-top: 1px solid #b8c2a64d; border-bottom: 1px solid #b8c2a64d; padding: 11px 0; color: #b7c8b8; font-size: 12px; }
+.village-shop-balance strong { margin-left: 6px; color: #efd5a1; font: 18px Georgia, serif; }
+.village-shop-items { display: grid; gap: 8px; margin-top: 15px; }
+.village-shop-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; min-height: 86px; padding: 12px 16px; border: 1px solid #b5c4a43f; background: #0c2428b8; }
+.village-shop-card strong { font: 17px var(--font-display); letter-spacing: 2px; }
+.village-shop-card p { margin: 6px 0 0; color: #a9beae; font-size: 11px; }
+.village-shop-card button { min-width: 132px; padding: 9px 12px; border: 1px solid #c4c39581; background: #486b5680; color: #e4ddbb; font-size: 11px; pointer-events: auto; }
+.village-shop-card button:hover:not(:disabled) { background: #628469aa; }
+.village-shop-card button:disabled { cursor: default; opacity: 0.62; background: #132529; color: #a5b4aa; }
+.village-shop-foot { margin: 15px 0 0; color: #9db2a6; font-size: 10px; text-align: right; }
+.village-pause { width: 400px; padding: 36px 40px; border: 1px solid #b9bf9a83; background: linear-gradient(135deg, #1d3635f7, #10272af7); box-shadow: 0 20px 70px #030f12c9; text-align: center; }
+.village-pause span { color: #cab888; font-size: 11px; letter-spacing: 4px; }
+.village-pause h2 { margin: 17px 0 8px; font: 31px var(--font-display); letter-spacing: 5px; }
+.village-pause p { color: #afc2b2; font-size: 13px; }
+.village-pause button { display: block; width: 100%; margin: 26px 0 13px; padding: 12px; border: 1px solid #b9c89b91; background: #5476628a; font: 15px var(--font-display); letter-spacing: 3px; pointer-events: auto; }
+.village-pause small { color: #aabbb0; font-size: 10px; }
+.village-ui[data-phase="LEVEL2_CLEARED"] .village-heading h1 { color: #f0e4b7; text-shadow: 0 0 15px #e8c48074; }

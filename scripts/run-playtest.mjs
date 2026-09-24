@@ -1,11 +1,11 @@
-import { makeDriver } from './playtest-bot.mjs';
+import { makeDriver, startLevelOne } from './playtest-bot.mjs';
 import { chromium } from 'playwright';
 import { readFile, mkdir, writeFile, access } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 
 const suites = process.argv.slice(2).filter(arg => arg !== '--headed');
-if (!suites.length) suites.push('controls', 'combat', 'edgecases', 'boss', 'difficulty', 'journey');
-const allowed = new Set(['controls', 'combat', 'edgecases', 'boss', 'difficulty', 'journey']);
+if (!suites.length) suites.push('controls', 'combat', 'edgecases', 'boss', 'difficulty', 'journey', 'ranged', 'ape-rock', 'responsive', 'lifecycle', 'v03');
+const allowed = new Set(['controls', 'combat', 'edgecases', 'boss', 'difficulty', 'journey', 'ranged', 'ape-rock', 'responsive', 'lifecycle', 'v03']);
 for (const name of suites) if (!allowed.has(name)) throw new Error(`Unknown suite: ${name}`);
 const baseURL = (process.env.PLAYTEST_URL ?? 'http://localhost:5177').replace(/\/$/, '');
 const exists = path => access(path).then(() => true, () => false);
@@ -37,7 +37,7 @@ try {
     // Local, versioned scenario expressions can also be passed directly to Game Studio's CLI.
     const scenario = new Function(`return (${source.trim()});`)();
     try {
-      const result = await scenario(page,{makeDriver});
+      const result = await scenario(page,{makeDriver,startLevelOne});
       await writeFile(`output/playwright/${name}.json`, JSON.stringify(result, null, 2));
       if (result.passed === false || result.errors?.length || result.failedRequests?.length || result.checks?.some(check => !check.pass)) throw new Error(`${name} failed; see its JSON report.`);
       console.log(`PASS ${name}: ${result.checks?.length ?? 'full-route'} checks${result.elapsedSeconds ? `, ${result.elapsedSeconds}s` : ''}`);

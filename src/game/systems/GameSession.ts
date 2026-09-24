@@ -4,6 +4,9 @@ import type { HudSnapshot, MapDefinition } from '../data/types';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { Boss } from '../entities/Boss';
+import { ApeBoss } from '../entities/ApeBoss';
+import { FallingRockHazard, type FallingRockDefinition } from './FallingRockHazard';
+import type { LevelId } from '../world/levels';
 import { EnemyCoordinator } from '../ai/EnemyCoordinator';
 import { BossEncounter } from './BossEncounter';
 import { Actor } from '../entities/Actor';
@@ -16,6 +19,7 @@ import { DebugView } from '../view/DebugView';
 import { LootSystem } from './LootSystem';
 
 type Notify=(message:string,kind?:'info'|'success'|'danger')=>void;
+interface SessionOptions { state?:GameState; levelId?:LevelId; hazards?:readonly FallingRockDefinition[]; returnDelay?:number; onReturn?:()=>void }
 /** Integration boundary: owns one run, clocks, actors and systems; Scene just wires lifecycle. */
 export class GameSession {
   readonly state:GameState;
@@ -26,6 +30,9 @@ export class GameSession {
   readonly input:InputSource;
   readonly effects:Effects;
   readonly encounter?:BossEncounter;
+  readonly hazards?:FallingRockHazard;
+  returnPortalReadyAt=0;
+  returning=false;
   readonly coordinator=new EnemyCoordinator();
   private bossPhase=1;
   deaths=0;
@@ -37,13 +44,17 @@ export class GameSession {
   private hitStopRemaining=0;
   private checkpointHint=false;
   private exitHintAt=0;
+  private currentZone='';
+  private areaTitle?:Phaser.GameObjects.Text;
   private readonly rewarded=new Set<string>();
   private readonly onBlur=()=>this.setPaused(true);
 
-  constructor(private scene:Phaser.Scene,readonly map:MapDefinition,private world:WorldView,private notify:Notify) {
-    this.state=new GameState(map.spawn);this.state.totalEnemies=map.enemies.length;
+  constructor(private scene:Phaser.Scene,readonly map:MapDefinition,private world:WorldView,private notify:Notify,private readonly options:SessionOptions={}) {
+    this.state=options.state??new GameState(map.spawn);
+    if(options.state)this.state.enterLevel(map.spawn);
+    this.state.totalEnemies=map.enemies.length;
     this.player=new Player(scene,this.state,map.spawn);
-    this.enemies=map.enemies.map(spawn=>spawn.type==='boss'||spawn.type==='elite'?new Boss(scene,spawn,ENEMIES[spawn.type]):new Enemy(scene,spawn,ENEMIES[spawn.type]));
+    this.enemies=map.enemies.map(spawn=>spawn.type==='ape-boss'?new ApeBoss(scene,spawn,ENEMIES['ape-boss']):spawn.type==='boss'||spawn.type==='elite'?new Boss(scene,spawn,ENEMIES[spawn.type]):new Enemy(scene,spawn,ENEMIES[spawn.type]));
     scene.physics.add.collider(this.player.sprite,world.platforms);
     this.enemies.forEach(enemy=>scene.physics.add.collider(enemy.sprite,world.platforms));
     this.input=new InputController(scene);
@@ -58,11 +69,13 @@ export class GameSession {
       },
       onKill:target=>this.onKill(target),
     },{terrain:map.platforms,worldWidth:map.width,obstacles:()=>this.encounter?.obstacles??[]});
-    const boss=this.enemies.find((enemy):enemy is Boss=>enemy instanceof Boss);
+    const boss=this.enemies.find((enemy):enemy is Boss|ApeBoss=>enemy instanceof Boss||enemy instanceof ApeBoss);
     if(map.bossArena&&boss)this.encounter=new BossEncounter(scene,map.bossArena,boss,this.player,world,()=>{
-      this.effects.encounter(boss);this.notify('镇关鬼将 · 玄骸 — 观察前摇，闪避后反击','danger');
+      this.effects.encounter(boss);this.showAreaTitle(boss.config.name);this.notify(`${boss.config.name} — 观察前摇，闪避后反击`,'danger');
     });
+    if(options.hazards?.length)this.hazards=new FallingRockHazard(scene,options.hazards);
     window.addEventListener('blur',this.onBlur);
+    this.showAreaTitle(options.levelId==='level2'?'雾隐古道':'沉月山林');
     this.notify('循着残灯，穿过古道。小心断桥。','info');
   }
   update(delta:number):void {
@@ -84,6 +97,10 @@ export class GameSession {
       else this.notify(this.state.stats.potionCount<=0?'回春散已用尽。寻找残灯补给。':'生命已满，无需使用回春散。');
     }
     this.player.update(input,this.now,this.combat);
+    if(this.hazards) {
+      const hp=this.player.hp;this.hazards.update(this.now,this.player);
+      if(this.player.hp<hp) {this.effects.damage(this.player,hp-this.player.hp);this.hitStopRemaining=42;}
+    }
     this.encounter?.update(this.now);
     this.coordinator.update(this.now,this.player,this.enemies);
     this.enemies.forEach(enemy=>enemy.update(this.now,this.player,this.combat,this.coordinator.forEnemy(enemy)));
@@ -97,22 +114,33 @@ export class GameSession {
     }
     this.combat.update(dt,this.now,[this.player,...this.enemies]);
     this.loot.update(this.now,this.player);
-    this.updateProgress();
+    this.updateProgress(input.interact);
     this.world.update(this.now,this.player.x);
+    const zone=[...this.map.zones].reverse().find(z=>this.player.x>=z.x)?.name??this.map.zones[0]?.name;
+    if(zone&&zone!==this.currentZone) {
+      this.currentZone=zone;
+      if(this.now>1800)this.showAreaTitle(zone);
+    }
     this.draw();
+  }
+  private showAreaTitle(title:string):void {
+    this.areaTitle?.destroy();
+    const label=this.scene.add.text(640,190,title,{fontFamily:'Georgia, "Songti SC", serif',fontSize:'30px',color:'#f0e3c0',stroke:'#12272b',strokeThickness:4,letterSpacing:5}).setOrigin(0.5).setScrollFactor(0).setDepth(96).setAlpha(0);
+    this.areaTitle=label;
+    this.scene.tweens.add({targets:label,alpha:0.95,duration:260,yoyo:true,hold:900,onComplete:()=>{label.destroy();if(this.areaTitle===label)this.areaTitle=undefined;}});
   }
   private draw():void {
     this.effects.update(this.now,this.enemies,this.combat.attacks,this.player);
-    this.debugView.update(this.debug,this.player,this.enemies,this.combat.attacks);
+    this.debugView.update(this.debug,this.player,this.enemies,this.combat.attacks,this.hazards?.snapshot());
   }
-  private updateProgress():void {
+  private updateProgress(interact=false):void {
     if(this.player.alive&&this.player.body.bottom>830) {
       this.state.takeDamage(this.state.stats.maxHp);
       this.player.die();this.combat.cancel(this.player);
     }
     if(!this.player.alive) {
       if(this.respawnAt===0) {
-        this.deaths++;this.combat.clear();this.encounter?.reset(this.now);this.bossPhase=1;
+        this.deaths++;this.combat.clear();this.encounter?.reset(this.now);this.hazards?.reset(this.now);this.bossPhase=1;
         this.respawnAt=this.now+1450;this.notify('灯火未熄 · 即将返回最近的残灯','danger');}
       if(this.now>=this.respawnAt) {
         this.combat.clear();this.enemies.forEach(enemy=>{if(!(enemy instanceof Boss))enemy.resetPosition();});
@@ -136,14 +164,21 @@ export class GameSession {
     if(bossCheckpoint&&!this.state.visitedCheckpoints.has('boss')&&Math.abs(this.player.x-bossCheckpoint.x)<80&&Math.abs(this.player.centerY-bossCheckpoint.y)<100) {
       this.state.activateCheckpoint(bossCheckpoint,'boss');this.world.setBossCheckpointActive(true);
       this.effects.floatText(this.player.x,this.player.y-80,'关前残灯 · 已记录','#e9c38a',26);
-      this.notify('关前残灯已燃 · 重试玄骸时恢复生命与三份回春散','success');
+      this.notify(`关前残灯已燃 · 重试${this.encounter?.boss.config.name??'守关者'}时恢复生命与三份回春散`,'success');
     }
-    this.world.setExitOpen(eliteDefeated);
-    if(Math.abs(this.player.x-this.map.exit.x)<75) {
-      if(eliteDefeated) {
-        this.state.completed=true;this.player.body.stop();this.combat.clear();this.scene.physics.world.pause();
-        this.notify('古道已明 · 试炼完成','success');
-      } else if(this.now>this.exitHintAt) {this.exitHintAt=this.now+4000;this.notify('封印未解。击败镇关鬼将，再穿过山门。','danger');}
+    this.world.setExitOpen(eliteDefeated&&this.returnPortalReadyAt>0&&this.now>=this.returnPortalReadyAt);
+    if(Math.abs(this.player.x-this.map.exit.x)<105) {
+      if(eliteDefeated&&this.now>=this.returnPortalReadyAt&&this.returnPortalReadyAt>0) {
+        if(interact&&!this.returning) {
+          this.returning=true;this.player.body.stop();this.combat.clear();
+          if(this.options.onReturn)this.options.onReturn();
+          else this.state.completed=true;
+        } else if(!this.returning&&this.now>this.exitHintAt) {
+          this.exitHintAt=this.now+3600;this.notify('[E] 归村 · 将战利品带回青石村','success');
+        }
+      } else if(!eliteDefeated&&this.now>this.exitHintAt) {
+        this.exitHintAt=this.now+4000;this.notify(`封印未解。击败${this.encounter?.boss.config.name??'守关者'}，再穿过山门。`,'danger');
+      }
     }
     for(const enemy of this.enemies) {
       if(enemy.alive&&enemy.body.bottom>830) {
@@ -158,10 +193,12 @@ export class GameSession {
     this.loot.drop(target.config,target.x,Math.min(target.body.bottom-20,575));
     this.effects.floatText(target.x,target.y-65,`+${target.config.experience} 修为`,'#add4ba',17);
     if(levels>0) {this.effects.floatText(this.player.x,this.player.y-95,`境界提升 · ${this.state.stats.level}`,'#f5d292',30);this.notify(`境界提升至 ${this.state.stats.level} · 生命与攻击增强`,'success');}
-    if(target instanceof Boss) {
+    if(target instanceof Boss||target instanceof ApeBoss) {
       this.encounter?.defeat(this.now);
+      const firstClear=this.options.levelId?this.state.clearLevel(this.options.levelId):false;
+      this.returnPortalReadyAt=this.now+(this.options.returnDelay??3500);
       this.scene.events.emit('boss-drop',{bossId:target.id,x:target.x,y:target.y,level:this.state.stats.level});
-      this.notify('镇关鬼将已败 · 结界解除 · 向右抵达山门','success');
+      this.notify(`${target.config.name}已败 · ${firstClear?'首通奖励已领取 · ':''}稍候前往山门归村`,'success');
     }
   }
   setPaused(paused:boolean):void {
@@ -180,12 +217,12 @@ export class GameSession {
     const s=this.state.stats;
     const zone=[...this.map.zones].reverse().find(z=>this.player.x>=z.x)??this.map.zones[0];
     const eliteDefeated=this.encounter?.state==='defeated';
-    return {...s,experienceToNext:experienceForLevel(s.level),skillCooldown:Math.max(0,this.player.skillReadyAt-this.now),skillCooldownMax:SKILLS.swordWave.cooldown,dashCooldown:Math.max(0,this.player.dash.readyAt-this.now),dashCooldownMax:DASH.cooldown,location:zone.name,objective:eliteDefeated?'穿过山门 · 完成试炼':this.state.checkpointActive?'击败镇关鬼将，抵达山门':'沿古道前行，点亮残灯',progress:Math.max(0,Math.min(1,this.player.x/this.map.width)),kills:this.state.kills,totalEnemies:this.state.totalEnemies,elapsed:this.state.elapsed,checkpointActive:this.state.checkpointActive,state:this.player.state,fps:Math.round(this.scene.game.loop.actualFps),debug:this.debug,paused:this.paused,dead:!this.player.alive,completed:this.state.completed,boss:this.encounter?.snapshot(),bossCheckpointActive:this.state.visitedCheckpoints.has('boss')};
+    return {...s,experienceToNext:experienceForLevel(s.level),skillCooldown:Math.max(0,this.player.skillReadyAt-this.now),skillCooldownMax:SKILLS.swordWave.cooldown,dashCooldown:Math.max(0,this.player.dash.readyAt-this.now),dashCooldownMax:DASH.cooldown,location:zone.name,objective:eliteDefeated?this.now>=this.returnPortalReadyAt?'前往山门 · E 返回青石村':'整理战利品 · 归村出口即将开启':this.state.checkpointActive?`击败${this.encounter?.boss.config.name??'守关者'}`:'沿古道前行，点亮残灯',progress:Math.max(0,Math.min(1,this.player.x/this.map.width)),kills:this.state.kills,totalEnemies:this.state.totalEnemies,elapsed:this.state.elapsed,checkpointActive:this.state.checkpointActive,state:this.player.state,fps:Math.round(this.scene.game.loop.actualFps),debug:this.debug,paused:this.paused,dead:!this.player.alive,completed:this.state.completed,boss:this.encounter?.snapshot(),bossCheckpointActive:this.state.visitedCheckpoints.has('boss')};
   }
   destroy():void {
     window.removeEventListener('blur',this.onBlur);
     this.scene.time.paused=false;this.scene.tweens.resumeAll();
-    this.encounter?.destroy();this.input.destroy();this.loot.destroy();this.effects.destroy();this.debugView.destroy();
+    this.areaTitle?.destroy();this.hazards?.destroy();this.encounter?.destroy();this.input.destroy();this.loot.destroy();this.effects.destroy();this.debugView.destroy();
     this.combat.clear();this.player.destroy();this.enemies.forEach(enemy=>enemy.destroy());
   }
 }

@@ -1,40 +1,26 @@
 # 项目状态 — 2026-09-24
 
-本次提交用于保存现有 Phaser RPG 工程。v0.2 Combat & Boss Update 仍在开发与验证中，不作为已完成的发行版本。
+当前工程为可运行的 RPG Demo v0.3：青石村 Hub、完整新手训练、对话与商店、两道可游玩山门、两关共享战斗场景、落石、高台远程敌人及第二 Boss 已接入。玩家可从村庄出发、挑战玄骸、带着成长归村、解锁雾隐古道、击败魇猿并回村看到“第二章完成”。第三道山门保持锁定。详细架构见 [v0.3 设计文档](V03_VILLAGE_CHAPTER2_DESIGN.md)，运行方法见 [README](../README.md)。
 
-## 已进入工程的功能
+## 验证
 
-- 保留 Phaser 3.90、TypeScript、Vite、薄 GameplayScene 和独立 GameSession。
-- 四种普通敌人：基础近战、突进、重甲、远程弩手。
-- Poise / Stagger、近战协同和独立弹体判定。
-- 三阶段 Boss、五种招式、竞技场封锁、Boss 前检查点、Boss HUD 与调试显示。
-- Playwright 的 Boss 生命周期、难度对比与完整旅程测试脚本。
-
-这些代码已经存在，不意味着所有游戏体验和浏览器验收都已通过。
-
-## 本次上传前重新运行
-
-| 检查 | 结果 |
+| 命令 / 套件 | 结果 |
 | --- | --- |
-| `npm test` | 7 个测试文件，65 项通过 |
-| `npm run build` | TypeScript 检查与 Vite 生产构建通过 |
+| `npm test` | 14 个测试文件、95 项通过 |
+| `npm run build` | TypeScript 和 Vite 生产构建通过 |
+| `npm run playtest` | 控制、战斗、边界、玄骸、难度、第一关旅程、高台弩手、魇猿投石、响应式、重复场景进出及 v0.3 完整旅程全部通过 |
+| `v03` 完整旅程 | 39 项检查，包括两次 Boss 击败与归村、一次性进度变化和第三门锁定；无控制台错误或失败资源请求 |
 
-本次上传未重新运行完整 `npm run playtest`。旧版 `PLAYTEST_REPORT.md` 中的通关记录属于 v0.1。
+机器可读结果和截图在本机 `output/playwright/`，不随 Git 提交；克隆后执行 `npm run playtest` 可重建。发现和修复的具体问题见 [PLAYTEST_REPORT](../PLAYTEST_REPORT.md)。
 
-## 尚未完成
+## 架构状态
 
-- 最近一次 v0.2 难度 A 测试未通过：站立连续普攻击败两名基础敌人，仅受到 18 伤害，未达到“大量受伤”的目标。需要继续检查协同行为、攻击节奏和韧性平衡，不能将当前难度标记为验收完成。
-- 同次难度测试在 A 失败后终止，B / C / D 的成功结果尚未建立。
-- v0.2 完整键盘通关、Boss 战时长、全套视觉截图和最终浏览器回归仍需完成。
-- 最终参数、浏览器问题修复及实测数据需要在后续更新 `README.md` 和 `PLAYTEST_REPORT.md`。
+- 一个可序列化的 `GameState` 持有角色数据与世界进度，由 Phaser Registry 跨 Scene 复用；刷新浏览器仍会重开新游戏。
+- `VillageScene` 是独立安全地图；`GameplayScene` 依据 `LevelDefinition` 复用既有 `GameSession`、Player、CombatSystem、Enemy、BossEncounter 与 HUD。
+- 对话、商店、教程、交互、落石与场景切换分别由小型系统承担；NPC 和山门共用 E 输入。
+- Manifest 中的稳定资源 key 已覆盖村庄 NPC/场景和第二关，后续正式素材可逐项替换。
+- 第一关保留 v0.2 战斗内容；玄骸和魇猿首通奖励各只发一次，重进可重复获取普通击杀奖励。
 
-## 克隆后运行
+## 已知边界
 
-```bash
-npm ci
-npm run dev
-```
-
-访问开发服务显示的地址，默认 http://localhost:5177 。生产产物可以通过 `npm run build` 重新生成。
-
-源码、原始素材、依赖锁文件、测试脚本和工程文档均包含在仓库中。`node_modules/`、`dist/`、`output/`、浏览器缓存、日志和本地环境变量文件由 `.gitignore` 排除。测试截图和 JSON 报告由浏览器测试生成到本地 `output/playwright/`。
+此版还没有持久存档、正式美术与音频、第三章、触屏控制、装备或复杂任务。390×844 竖屏保持 16:9 比例，不裁切但文字较小；主要面向键盘和桌面横屏。现有高等级角色站立连按 J 仍可能打赢玄骸，尽管比合理闪避打法承受显著更多伤害；进一步平衡与人工游玩时长需要下版测试。

@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import type { Player } from '../entities/Player';
 import type { Enemy } from '../entities/Enemy';
 import type { AttackInstance } from '../combat/CombatSystem';
+import type { FallingRockSnapshot } from '../systems/FallingRockHazard';
 
 export class DebugView {
   private readonly graphics: Phaser.GameObjects.Graphics;
@@ -10,7 +11,7 @@ export class DebugView {
   constructor(private readonly scene: Phaser.Scene, _enemies: Enemy[]) {
     this.graphics = scene.add.graphics().setDepth(90);
   }
-  update(enabled: boolean, player: Player, enemies: Enemy[], attacks: AttackInstance[]): void {
+  update(enabled: boolean, player: Player, enemies: Enemy[], attacks: AttackInstance[], hazards:readonly FallingRockSnapshot[]=[]): void {
     const g = this.graphics; g.clear();
     this.labels.forEach(label => label.setVisible(false));
     this.attackLabels.forEach(label => label.setVisible(false));
@@ -40,6 +41,12 @@ export class DebugView {
       let label = this.attackLabels[i];
       if (!label) { label = this.makeLabel().setFontSize(10); this.attackLabels.push(label); }
       label.setVisible(true).setPosition(r.x, r.y + r.height + 3).setText(`${attack.kind} / ${attack.window.active ? 'ACTIVE' : attack.window.finished ? 'END' : 'WINDUP'}`);
+    });
+    hazards.forEach(hazard=>{
+      if(hazard.state==='idle'||hazard.state==='cooldown')return;
+      const box=hazard.bounds;
+      g.lineStyle(2,hazard.state==='impact'?0xff735d:0xf3be75,0.95).strokeRect(box.x,box.y,box.width,box.height);
+      if(hazard.state==='impact')g.fillStyle(0xff735d,0.12).fillRect(box.x,box.y,box.width,box.height);
     });
   }
   destroy(): void {

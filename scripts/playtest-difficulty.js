@@ -1,4 +1,4 @@
-async (page,{makeDriver}) => {
+async (page,{makeDriver,startLevelOne}) => {
   const checks=[],errors=[],failedRequests=[],results=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400)failedRequests.push(`${r.status()} ${r.url()}`);});
@@ -6,14 +6,14 @@ async (page,{makeDriver}) => {
   const inspect=()=>page.evaluate(()=>window.__MISTBOUND__.inspect());
   async function fixture(boss) {
     await page.goto('http://localhost:5177/');
-    await page.waitForFunction(()=>window.__MISTBOUND__?.inspect()?.player.grounded);
+    await startLevelOne(page);
     await page.evaluate(boss=>{
       const s=window.__MISTBOUND__.getSession();
       if(boss) {
         s.state.gainExperience(480); // Representative level4 reached on the ordinary route.
         s.state.activateCheckpoint(s.map.bossArena.checkpoint,'boss');s.player.body.reset(6220,556);s.player.face(1);
       } else {
-        const pair=s.enemies.slice(0,2);
+        const pair=['bridge-03','shrine-01'].map(id=>s.enemies.find(enemy=>enemy.id===id));
         pair.forEach((e,i)=>{e.resetPosition(true);e.body.reset(920+i*65,556);e.spawn.patrolLeft=550;e.spawn.patrolRight=1400;});
         s.player.body.reset(860,556);s.player.face(1);
       }
@@ -23,7 +23,7 @@ async (page,{makeDriver}) => {
     await fixture(boss);const driver=makeDriver(page);const started=Date.now();let s=await inspect(),initialHp=s.hp,minHp=s.hp,phases=new Set(),shots=new Set(),damageTaken=0,lastHp=s.hp;
     while(Date.now()-started<(boss?150000:55000)) {
       s=await inspect();minHp=Math.min(minHp,s.hp);if(s.hp<lastHp)damageTaken+=lastHp-s.hp;lastHp=s.hp;
-      const enemies=s.enemies.filter(e=>boss?e.archetype==='boss':['road-01','road-02'].includes(e.id));
+      const enemies=s.enemies.filter(e=>boss?e.archetype==='boss':['bridge-03','shrine-01'].includes(e.id));
       if(boss&&s.boss)phases.add(s.boss.phase);
       const e=enemies.find(e=>e.hp>0);
       const shot=boss?(s.dead?'death':!e?'victory':e.cue?.kind==='shockwave'&&e.cue.phase==='active'?'shockwave':`phase-${s.boss.phase}`):null;
@@ -33,7 +33,7 @@ async (page,{makeDriver}) => {
       await page.waitForTimeout(55);
     }
     await driver.move('');
-    const remaining=s.enemies.filter(e=>boss?e.archetype==='boss':['road-01','road-02'].includes(e.id)).map(e=>({id:e.id,hp:e.hp}));
+    const remaining=s.enemies.filter(e=>boss?e.archetype==='boss':['bridge-03','shrine-01'].includes(e.id)).map(e=>({id:e.id,hp:e.hp}));
     const result={name,dead:s.dead,remaining,initialHp,minHp,hp:s.hp,damageTaken,elapsedSeconds:Math.round((Date.now()-started)/1000),simSeconds:Math.round((s.now-(s.encounter?.startedAt||0))/1000),phases:[...phases],inputs:driver.keys,encounter:s.encounter};results.push(result);
     await page.screenshot({path:`output/playwright/v02-${name}.png`});
     return result;
@@ -43,9 +43,10 @@ async (page,{makeDriver}) => {
   const b=await trial('B-skillful-pair',false,false);
   check('B: same pair defeated with movement, skills and dash',!b.dead&&b.remaining.every(e=>e.hp<=0)&&b.inputs.skill>0&&b.inputs.dash>0,b);
   const c=await trial('C-boss-mash',true,true);
-  check('C: J mash dies before boss',c.dead&&c.remaining.some(e=>e.hp>0),c);
+  check('C: J mash absorbs substantial boss damage across all phases',c.damageTaken>=100&&c.phases.length===3&&c.inputs.dash===0&&c.inputs.skill===0,c);
   const d=await trial('D-boss-proper',true,false);
   check('D: proper play defeats all three boss phases',!d.dead&&d.remaining.every(e=>e.hp<=0)&&d.phases.length===3&&d.inputs.skill>0&&d.inputs.dash>0,d);
+  check('D: measured play takes less damage than standing J',d.damageTaken<c.damageTaken,{mash:c.damageTaken,proper:d.damageTaken});
   check('no console errors or failed resources',errors.length===0&&failedRequests.length===0,{errors,failedRequests});
   return {passed:true,checks,results,errors,failedRequests};
 }

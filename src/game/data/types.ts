@@ -1,8 +1,8 @@
 export type Facing = -1 | 1;
 export type ActorState = 'Idle' | 'Run' | 'Jump' | 'Fall' | 'Attack' | 'Skill' | 'Dash' | 'Hurt' | 'Death' | 'Patrol' | 'Chase' | 'Alert' | 'Telegraph' | 'Recovery' | 'Stagger' | 'Transition';
-export type EnemyArchetype = 'basic' | 'fast' | 'heavy' | 'ranged' | 'boss';
+export type EnemyArchetype = 'basic' | 'fast' | 'heavy' | 'ranged' | 'boss' | 'ape-boss' | 'elite-heavy';
 export interface PoiseConfig { maxPoise:number; poiseRecoveryDelay:number; poiseRecoveryRate:number; staggerDuration:number }
-export type AttackKind = 'slash' | 'lunge' | 'heavy' | 'bolt' | 'wave' | 'shockwave' | 'combo' | 'phantom';
+export type AttackKind = 'slash' | 'lunge' | 'heavy' | 'bolt' | 'wave' | 'shockwave' | 'combo' | 'phantom' | 'smash' | 'rock' | 'roar';
 export interface TelegraphCue {
   kind:AttackKind | 'transition'; phase:'windup'|'active'|'recovery'; progress:number;
   range:number; direction:Facing; label:string; dangerous:boolean;

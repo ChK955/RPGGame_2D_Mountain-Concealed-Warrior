@@ -55,6 +55,20 @@ export const ENEMIES: Record<EnemyArchetype | 'elite', EnemyConfig> = {
   },
   boss: BOSS,
   elite: BOSS,
+  'ape-boss': {
+    ...BOSS, id: 'ape-boss', archetype: 'ape-boss', name: '赤目山魈 · 魇猿',
+    assetKey: 'level2-boss', maxHp: 820, damage: 24, speed: 145,
+    experience: 420, goldMin: 125, goldMax: 165, scale: 1.48,
+    tint: 0xe89b83, poise: { maxPoise: 260, poiseRecoveryDelay: 1900, poiseRecoveryRate: 48, staggerDuration: 700 },
+  },
+  'elite-heavy': {
+    id: 'elite-heavy', archetype: 'elite-heavy', name: '雾甲统领', assetKey: 'enemy-basic',
+    maxHp: 230, damage: 27, speed: 98, detectionRange: 470, leashRange: 640,
+    attackRange: 122, windup: 720, active: 180, recovery: 750, cooldown: 1850,
+    experience: 100, goldMin: 28, goldMax: 42, goldChance: 1, potionChance: 0.45,
+    scale: 1.13, elite: true, tint: 0x97b6bc, knockback: 340, attackHeight: 84,
+    poise: { maxPoise: 190, poiseRecoveryDelay: 1800, poiseRecoveryRate: 38, staggerDuration: 650 },
+  },
 };
 
 export const SKILLS: { swordWave: SkillConfig } = {
@@ -72,7 +86,7 @@ export const PLAYER_ATTACK = {
 };
 
 export const ENEMY_BEHAVIOR = {
-  maxMeleeAttackers: 2, alertRadius: 270, holdDistance: 180, sameLevelTolerance: 115,
+  maxMeleeAttackers: 2, alertRadius: 270, holdDistance: 180, sameLevelTolerance: 115, rangedVerticalTolerance: 180,
   patrolSpeedMultiplier: 0.38, patrolPause: 400, hitFlash: 90, staggerFlash: 130,
   hitKnockbackMultiplier: 0.12, hitKnockbackMax: 28, staggerKnockbackMultiplier: 0.8,
   retreatRangeRatio: 0.72, rangeTolerance: 40, projectileWidth: 26, fastStrikeRange: 65,

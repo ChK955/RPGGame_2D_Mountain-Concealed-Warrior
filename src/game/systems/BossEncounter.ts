@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { ArenaConfig, BossHudState } from '../data/types';
 import type { Boss } from '../entities/Boss';
+import type { ApeBoss } from '../entities/ApeBoss';
 import type { Player } from '../entities/Player';
 import type { WorldView } from '../world/WorldView';
 import type { Rect } from '../combat/AttackWindow';
@@ -14,7 +15,7 @@ export class BossEncounter {
   lastDuration=0;
   private walls:Phaser.Physics.Arcade.StaticGroup;
   private readonly colliders:Phaser.Physics.Arcade.Collider[]=[];
-  constructor(private scene:Phaser.Scene,readonly arena:ArenaConfig,readonly boss:Boss,private player:Player,private world:WorldView,private onEnter:()=>void) {
+  constructor(private scene:Phaser.Scene,readonly arena:ArenaConfig,readonly boss:Boss|ApeBoss,private player:Player,private world:WorldView,private onEnter:()=>void) {
     this.walls=scene.physics.add.staticGroup();
     for(const x of [arena.left,arena.right]) {
       const wall=scene.add.rectangle(x,arena.groundY/2,12,arena.groundY+220,0xffffff,0);
@@ -40,7 +41,6 @@ export class BossEncounter {
   defeat(now:number):void {
     if(this.state==='defeated')return;
     this.lastDuration=now-this.startedAt;this.state='defeated';this.lock(false);
-    this.world.setExitOpen(true);
     this.scene.cameras.main.startFollow(this.player.sprite,true,0.08,0,-180,0);
   }
   reset(now:number):void {

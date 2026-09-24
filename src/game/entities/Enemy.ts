@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 import { Actor } from './Actor';
 import { PoiseMeter } from '../components/PoiseMeter';
 import { ENEMY_BEHAVIOR } from '../config/balance';
-import type { AttackKind, EnemyConfig, EnemySpawn, Facing, TelegraphCue } from '../data/types';
+import type { AttackKind, EnemyConfig, EnemySpawn, Facing, Point, TelegraphCue } from '../data/types';
 import type { EnemyTactics } from '../ai/EnemyCoordinator';
 import type { Player } from './Player';
 import type { CombatSystem } from '../combat/CombatSystem';
@@ -12,6 +12,8 @@ export class Enemy extends Actor {
   readonly faction = 'enemy' as const;
   readonly poise: PoiseMeter;
   combatCue: TelegraphCue | null = null;
+  /** Locked point for the visible ranged windup and its actual bolt trajectory. */
+  rangedAim: Point | null = null;
   alerted = false;
   staggeredAt = Number.NEGATIVE_INFINITY;
   attackStage: 'none' | 'windup' | 'active' | 'recovery' = 'none';
@@ -50,7 +52,8 @@ export class Enemy extends Actor {
 
     const dx = player.x - this.x;
     const distance = Math.abs(dx);
-    const sameLevel = Math.abs(player.centerY - this.centerY) < ENEMY_BEHAVIOR.sameLevelTolerance;
+    const sameLevel = Math.abs(player.centerY - this.centerY) <
+      (this.config.archetype === 'ranged' ? ENEMY_BEHAVIOR.rangedVerticalTolerance : ENEMY_BEHAVIOR.sameLevelTolerance);
     const detection = this.alerted ? this.config.leashRange : this.config.detectionRange;
     this.alerted = sameLevel && (tactics?.alert ?? distance < detection);
     if (this.alerted) {
@@ -66,7 +69,7 @@ export class Enemy extends Actor {
         this.state = 'Chase';
         this.moveSafely(-this.config.speed);
       } else if (distance <= this.config.attackRange && now >= this.nextAttackAt) {
-        this.startAttack(now, combat);
+        this.startAttack(now, combat, player);
       } else if (distance > preferredRange + (this.config.archetype === 'ranged' ? ENEMY_BEHAVIOR.rangeTolerance : 0)) {
         this.state = 'Chase'; this.moveSafely(this.config.speed);
       } else {
@@ -103,7 +106,7 @@ export class Enemy extends Actor {
     return false;
   }
 
-  private startAttack(now: number, combat: CombatSystem): void {
+  private startAttack(now: number, combat: CombatSystem, player: Player): void {
     const c = this.config;
     this.attackStartedAt = now;
     this.attackEndsAt = now + c.windup + c.active + c.recovery;
@@ -113,10 +116,17 @@ export class Enemy extends Actor {
     this.attackStage = 'windup';
     this.state = 'Telegraph'; this.body.setVelocityX(0);
     if (c.archetype === 'ranged') {
+      this.rangedAim = { x: player.x, y: player.centerY };
+      const launchX = this.x + this.attackFacing * (12 + ENEMY_BEHAVIOR.projectileWidth / 2);
+      const dx = this.rangedAim.x - launchX;
+      const dy = this.rangedAim.y - this.centerY;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const speed = c.projectileSpeed ?? 400;
       combat.launchProjectile(this, {
         kind: 'bolt', windup: c.windup, lifetime: c.projectileLifetime ?? 1800,
         damage: c.damage, width: ENEMY_BEHAVIOR.projectileWidth, height: c.attackHeight,
-        speed: c.projectileSpeed ?? 400, knockback: c.knockback, facing: this.attackFacing,
+        speed: speed * Math.abs(dx) / distance, speedY: speed * dy / distance,
+        knockback: c.knockback, facing: this.attackFacing,
       });
     } else {
       combat.melee(this, {
@@ -155,7 +165,7 @@ export class Enemy extends Actor {
   }
 
   private get attackKind(): AttackKind {
-    return this.config.archetype === 'fast' ? 'lunge' : this.config.archetype === 'heavy' ? 'heavy' : this.config.archetype === 'ranged' ? 'bolt' : 'slash';
+    return this.config.archetype === 'fast' ? 'lunge' : ['heavy', 'elite-heavy'].includes(this.config.archetype) ? 'heavy' : this.config.archetype === 'ranged' ? 'bolt' : 'slash';
   }
 
   private publishCue(progress: number, phase: TelegraphCue['phase']): void {
@@ -166,6 +176,7 @@ export class Enemy extends Actor {
 
   private clearAction(): void {
     this.attackStage = 'none'; this.combatCue = null;
+    this.rangedAim = null;
     this.attackStartedAt = this.attackEndsAt = this.lockedUntil = 0;
   }
 

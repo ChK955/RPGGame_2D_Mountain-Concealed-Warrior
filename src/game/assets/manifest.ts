@@ -33,6 +33,21 @@ export const ACTOR_ASSETS: Record<string, ActorAsset> = {
     source: { type: 'spritesheet', textureUrl: 'assets/characters/elite.png', frameWidth: 128, frameHeight: 128 },
     appearance: { bodyWidth: 32, bodyHeight: 72, bodyOffset: { x: 48, y: 32 }, scale: 1, origin: { x: 0.5, y: 0.5 } },
   },
+  'level2-boss': {
+    key: 'level2-boss',
+    source: { type: 'spritesheet', textureUrl: 'assets/characters/elite.png', frameWidth: 128, frameHeight: 128 },
+    appearance: { bodyWidth: 32, bodyHeight: 72, bodyOffset: { x: 48, y: 32 }, scale: 1, origin: { x: 0.5, y: 0.5 } },
+  },
+  'npc-elder': {
+    key: 'npc-elder',
+    source: { type: 'spritesheet', textureUrl: 'assets/characters/enemy.png', frameWidth: 128, frameHeight: 128 },
+    appearance: { bodyWidth: 30, bodyHeight: 69, bodyOffset: { x: 49, y: 35 }, scale: 1, origin: { x: 0.5, y: 0.5 } },
+  },
+  'npc-merchant': {
+    key: 'npc-merchant',
+    source: { type: 'spritesheet', textureUrl: 'assets/characters/player.png', frameWidth: 128, frameHeight: 128 },
+    appearance: { bodyWidth: 26, bodyHeight: 68, bodyOffset: { x: 51, y: 36 }, scale: 1, origin: { x: 0.5, y: 0.5 } },
+  },
 };
 
 const WORLD_ASSETS = {
@@ -43,6 +58,15 @@ const WORLD_ASSETS = {
   'world-gate': 'assets/environment/gate.png',
   'world-tree': 'assets/environment/tree.png',
   'fx-glow': 'assets/fx/glow.png',
+  'village-sky': 'assets/environment/sky.png',
+  'village-mountains': 'assets/environment/mountains-far.png',
+  'village-house': 'assets/environment/ruin.png',
+  'village-shop': 'assets/environment/ruin.png',
+  'village-gate': 'assets/environment/gate.png',
+  'mist-forest-bg': 'assets/environment/sky.png',
+  'mist-tree': 'assets/environment/tree.png',
+  'rock': 'assets/environment/ruin.png',
+  'bridge': 'assets/environment/ruin.png',
 } as const;
 
 export function preloadAssets(scene: Phaser.Scene): void {

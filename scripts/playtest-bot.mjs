@@ -1,4 +1,18 @@
 /** Actual keyboard agent. Decisions use only the same current cues exposed to the player. */
+export async function startLevelOne(page) {
+  // Legacy combat suites intentionally begin at their original Level 1 fixture.
+  // The v0.3 journey suite separately exercises the complete village gate flow.
+  await page.waitForFunction(() => window.__MISTBOUND__?.inspect()?.scene === 'Village');
+  await page.evaluate(() => {
+    const api = window.__MISTBOUND__;
+    const state = api.getState();
+    state.completeTutorial();
+    state.stats.gold = 0;
+    state.stats.potionCount = 3;
+    api.game.scene.getScene('Village').scene.start('Gameplay', { levelId: 'level1' });
+  });
+  await page.waitForFunction(() => window.__MISTBOUND__?.inspect()?.scene === 'Gameplay' && window.__MISTBOUND__.inspect()?.player.grounded);
+}
 export function makeDriver(page) {
   let held='';
   let lastAction=0,lastJump=0,lastDodge=0;
